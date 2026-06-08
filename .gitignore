@@ -1,0 +1,28 @@
+# Environment
+.env
+.env.local
+*.env
+
+# Backend (Python)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/.ruff_cache/
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Claude Code (personal/local overrides — not shared project policy)
+.claude/settings.local.json
+
+# Misc
+txt.test
