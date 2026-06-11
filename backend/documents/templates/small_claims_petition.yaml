@@ -1,0 +1,19 @@
+# Document template registration — Phase 2.
+#
+# Registered in Foundry IQ `kb-document-templates` so agents can reference
+# this document type from Phase 3 onward. The full field map, preflight
+# rules, and state variations are built out in Phase 5
+# (backend/documents/template_engine.py).
+
+document_type: small_claims_petition
+display_name: Small Claims Petition
+description: >
+  Initial filing in small claims / Justice Court to recover the withheld
+  security deposit and any statutory penalties. Requires a demand letter to
+  have been generated first.
+applies_to_dispute_types:
+  - security_deposit
+generates_with: []
+status: stub
+fields: []
+state_variations: {}

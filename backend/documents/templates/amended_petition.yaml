@@ -1,0 +1,20 @@
+# Document template registration — Phase 2.
+#
+# Registered in Foundry IQ `kb-document-templates` so agents can reference
+# this document type from Phase 3 onward. The full field map, preflight
+# rules, and state variations are built out in Phase 5
+# (backend/documents/template_engine.py).
+
+document_type: amended_petition
+display_name: Amended Petition
+description: >
+  Updated petition filed to correct the named defendant (e.g. after an SOS
+  registered-agent name correction) or revise claim amounts. Always
+  generated together with motion_to_amend.
+applies_to_dispute_types:
+  - security_deposit
+generates_with:
+  - motion_to_amend
+status: stub
+fields: []
+state_variations: {}
