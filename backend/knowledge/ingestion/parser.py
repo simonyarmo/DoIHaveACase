@@ -9,7 +9,11 @@ import httpx
 from config import settings
 from knowledge.ingestion.validator import SCHEMA_SECTIONS
 
-_TIMEOUT = httpx.Timeout(120.0)
+# The configured deployment is a reasoning model that emits a `reasoning_content`
+# trace before the final markdown, which can take several minutes for a
+# 17-section extraction. This runs inside a Celery task, not a request/response
+# cycle, so a generous timeout is safe.
+_TIMEOUT = httpx.Timeout(300.0)
 
 
 def _system_prompt(state: str, source_url: str) -> str:
