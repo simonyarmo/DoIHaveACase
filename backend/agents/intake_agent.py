@@ -60,8 +60,8 @@ async def _run(case_id: str, session_id: str) -> dict:
                 session.status = "error"
                 session.completed_at = datetime.now(timezone.utc)
                 session.error_message = str(exc)[:2000]
-            # _run_research commits case.status = "researching" partway through;
-            # revert it on failure so the case isn't stuck and can be resubmitted.
+            # submit_case set case.status = "researching" before dispatching this
+            # run; revert it on failure so the case isn't stuck and can be resubmitted.
             case = await db.get(Case, uuid.UUID(case_id))
             if case is not None and case.status == "researching":
                 case.status = "intake"

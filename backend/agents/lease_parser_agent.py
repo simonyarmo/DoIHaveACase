@@ -21,7 +21,8 @@ from datetime import date
 import pdfplumber
 from docx import Document as DocxDocument
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.sql import func
 
 from config import settings
 from database import async_session_factory
@@ -101,54 +102,49 @@ async def _parse_and_store(document_id: str, case_id: str) -> dict:
         raw_response = await llm_client.chat_completion(messages, temperature=0.1)
         parsed = _parse_extraction_response(raw_response)
 
-        result = LeaseParseResult(
-            document_id=document.id,
-            case_id=uuid.UUID(case_id),
-            tenant_legal_name=parsed.get("tenant_legal_name"),
-            landlord_legal_name=parsed.get("landlord_legal_name"),
-            property_address=parsed.get("property_address"),
-            lease_start_date=_safe_date(parsed.get("lease_start_date")),
-            lease_end_date=_safe_date(parsed.get("lease_end_date")),
-            deposit_amount=_safe_float(parsed.get("deposit_amount")),
-            notice_required_days=_safe_int(parsed.get("notice_required_days")),
-            notice_method=parsed.get("notice_method"),
-            pet_policy=parsed.get("pet_policy"),
-            early_termination_clause=parsed.get("early_termination_clause"),
-            maintenance_responsibilities=parsed.get("maintenance_responsibilities"),
-            notice_compliant=_safe_bool(parsed.get("notice_compliant")),
-            flagged_clauses=parsed.get("flagged_clauses") if isinstance(parsed.get("flagged_clauses"), list) else [],
-            raw_parse_output=parsed,
-            confidence_score=_safe_float(parsed.get("confidence_score")),
+        notice_required_days = _safe_int(parsed.get("notice_required_days"))
+        result_values = {
+            "tenant_legal_name": parsed.get("tenant_legal_name"),
+            "landlord_legal_name": parsed.get("landlord_legal_name"),
+            "property_address": parsed.get("property_address"),
+            "lease_start_date": _safe_date(parsed.get("lease_start_date")),
+            "lease_end_date": _safe_date(parsed.get("lease_end_date")),
+            "deposit_amount": _safe_float(parsed.get("deposit_amount")),
+            "notice_required_days": notice_required_days,
+            "notice_method": parsed.get("notice_method"),
+            "pet_policy": parsed.get("pet_policy"),
+            "early_termination_clause": parsed.get("early_termination_clause"),
+            "maintenance_responsibilities": parsed.get("maintenance_responsibilities"),
+            "notice_compliant": _safe_bool(parsed.get("notice_compliant")),
+            "flagged_clauses": parsed.get("flagged_clauses") if isinstance(parsed.get("flagged_clauses"), list) else [],
+            "raw_parse_output": parsed,
+            "confidence_score": _safe_float(parsed.get("confidence_score")),
+        }
+
+        # Upsert on document_id: the upload-time Celery dispatch and the
+        # intake agent's direct call can both parse the same document, so a
+        # plain insert would violate `uq_lease_parse_results_document_id`.
+        stmt = pg_insert(LeaseParseResult).values(
+            document_id=document.id, case_id=uuid.UUID(case_id), **result_values
         )
-        db.add(result)
+        stmt = stmt.on_conflict_do_update(index_elements=["document_id"], set_={**result_values, "parsed_at": func.now()})
+        await db.execute(stmt)
 
         details = (
             await db.execute(
                 select(CaseDetailsSecurityDeposit).where(CaseDetailsSecurityDeposit.case_id == uuid.UUID(case_id))
             )
         ).scalar_one_or_none()
-        if details is not None and result.notice_required_days is not None:
-            details.lease_required_notice_days = result.notice_required_days
+        if details is not None and notice_required_days is not None:
+            details.lease_required_notice_days = notice_required_days
 
         document.status = "processed"
 
-        try:
-            await foundry_iq.add_document_to_case_kb(
-                db, case_id, f"lease-parse-{document_id}", "Lease Parse Summary", _build_summary(parsed), "lease_parse"
-            )
-            await db.commit()
-        except IntegrityError:
-            # Another worker (the upload-time Celery dispatch and the intake
-            # agent's direct call can race) already parsed this document and
-            # committed a `lease_parse_results` row first. Discard our
-            # duplicate and report its result instead.
-            await db.rollback()
-            logger.info("Lease %s already parsed by a concurrent run; using existing result", document_id)
-            existing = (
-                await db.execute(select(LeaseParseResult).where(LeaseParseResult.document_id == uuid.UUID(document_id)))
-            ).scalar_one_or_none()
-            if existing is not None and existing.raw_parse_output:
-                return existing.raw_parse_output
+        await foundry_iq.add_document_to_case_kb(
+            db, case_id, f"lease-parse-{document_id}", "Lease Parse Summary", _build_summary(parsed), "lease_parse"
+        )
+
+        await db.commit()
 
     return parsed
 
