@@ -1,7 +1,7 @@
 # CA — Security Deposit Law
 ## Last Verified: 2026-06-12
 ## Source: https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=CIV&sectionNum=1950.5
-## Next Review Due: 2027-06-12
+## Next Review Due: 2026-09-10
 ## Status: active
 
 ---

@@ -8,7 +8,7 @@ from tasks.law_refresh import on_demand_ingest
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
-_ESTIMATED_INGEST_SECONDS = 120
+_ESTIMATED_INGEST_SECONDS = 300
 
 
 @router.post("/ingest/{state}", response_model=IngestResponse)

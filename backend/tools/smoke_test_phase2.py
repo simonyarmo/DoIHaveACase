@@ -78,7 +78,7 @@ async def check_api() -> None:
         body = r.json() if r.status_code == 200 else {}
         check(
             "POST /knowledge/ingest/CA -> ingesting",
-            r.status_code == 200 and body == {"status": "ingesting", "estimated_seconds": 120},
+            r.status_code == 200 and body == {"status": "ingesting", "estimated_seconds": 300},
             f"got {r.status_code} {body}",
         )
 

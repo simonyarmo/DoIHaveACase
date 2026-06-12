@@ -87,7 +87,11 @@ async def run_refresh(db: AsyncSession, state: str) -> dict:
 
         raw = await fetcher.fetch_source(source.statute_url)
         new_markdown = await parser.parse_state_law(
-            state, source.statute_url, raw, reference_markdown=reference_markdown
+            state,
+            source.statute_url,
+            raw,
+            review_frequency_days=source.review_frequency_days,
+            reference_markdown=reference_markdown,
         )
 
         result = validator.validate_markdown(new_markdown, existing_markdown=existing_markdown)
