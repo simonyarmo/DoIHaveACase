@@ -16,9 +16,9 @@ from knowledge.ingestion.validator import SCHEMA_SECTIONS
 _TIMEOUT = httpx.Timeout(300.0)
 
 
-def _system_prompt(state: str, source_url: str) -> str:
+def _system_prompt(state: str, source_url: str, review_frequency_days: int) -> str:
     today = datetime.now(timezone.utc).date()
-    next_review = today + timedelta(days=365)
+    next_review = today + timedelta(days=review_frequency_days)
     sections = "\n".join(f"- {name}" for name in SCHEMA_SECTIONS)
     return (
         "You are a legal knowledge extraction engine for DepositShield, a tenant "
@@ -44,13 +44,14 @@ async def parse_state_law(
     source_url: str,
     raw_text: str,
     *,
+    review_frequency_days: int,
     reference_markdown: str | None = None,
 ) -> str:
     """Extract `raw_text` into the state law markdown schema via the configured
     Azure OpenAI deployment. `reference_markdown` (e.g. TX.md) is supplied as a
     structural example for states being parsed for the first time.
     """
-    messages = [{"role": "system", "content": _system_prompt(state, source_url)}]
+    messages = [{"role": "system", "content": _system_prompt(state, source_url, review_frequency_days)}]
     if reference_markdown:
         messages.append(
             {
