@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 
 from api.dependencies import get_current_user
-from api.routes import auth, health, knowledge
+from api.routes import auth, cases, chat, health, knowledge
 from config import settings
 from database import engine
 
@@ -40,6 +40,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(chat.router)
 
 # All Phase 2+ feature routers (cases, documents, timeline, notifications, ...)
 # must be included into `protected_router` rather than added to `app` directly,
@@ -47,4 +48,5 @@ app.include_router(auth.router)
 # attach `CurrentUserDep` to every new endpoint.
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 protected_router.include_router(knowledge.router)
+protected_router.include_router(cases.router)
 app.include_router(protected_router)

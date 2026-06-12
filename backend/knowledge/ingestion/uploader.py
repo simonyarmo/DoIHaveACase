@@ -104,8 +104,3 @@ def register_document_templates(template_paths: list[Path]) -> list[str]:
         )
     search_index.upload_documents(settings.foundry_kb_document_templates, documents)
     return [doc["id"] for doc in documents]
-
-
-def create_case_knowledge_base(case_id: str) -> str:
-    """Create a per-case knowledge base — called at case creation (Phase 3)."""
-    return search_index.create_case_knowledge_base(case_id)

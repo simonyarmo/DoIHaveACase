@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     azure_blob_account_name: str = ""
     azure_blob_account_key: str = ""
     azure_blob_container_knowledge: str = "knowledge-sources"
+    azure_blob_container_documents: str = "case-documents"
 
     # Supabase
     supabase_url: str = ""

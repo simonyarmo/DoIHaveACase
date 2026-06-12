@@ -9,7 +9,7 @@ celery_app = Celery(
     "depositshield",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["tasks.test_tasks", "tasks.law_refresh"],
+    include=["tasks.test_tasks", "tasks.law_refresh", "agents.intake_agent", "agents.lease_parser_agent"],
 )
 
 celery_app.conf.update(

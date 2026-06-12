@@ -37,3 +37,26 @@ def download_text(container: str, blob_name: str) -> str | None:
     if not blob_client.exists():
         return None
     return blob_client.download_blob().readall().decode("utf-8")
+
+
+def upload_bytes(container: str, blob_name: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+    """Upload binary content to blob storage, creating the container if needed.
+
+    Returns the blob URL.
+    """
+    _ensure_container(container)
+    blob_client = get_blob_service_client().get_blob_client(container=container, blob=blob_name)
+    blob_client.upload_blob(
+        data,
+        overwrite=True,
+        content_settings=ContentSettings(content_type=content_type),
+    )
+    return blob_client.url
+
+
+def download_bytes(container: str, blob_name: str) -> bytes | None:
+    """Download binary content from blob storage, or None if the blob doesn't exist."""
+    blob_client = get_blob_service_client().get_blob_client(container=container, blob=blob_name)
+    if not blob_client.exists():
+        return None
+    return blob_client.download_blob().readall()
