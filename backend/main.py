@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 
 from api.dependencies import get_current_user
-from api.routes import auth, health
+from api.routes import auth, health, knowledge
 from config import settings
 from database import engine
 
@@ -46,4 +46,5 @@ app.include_router(auth.router)
 # so they require authentication by construction instead of by remembering to
 # attach `CurrentUserDep` to every new endpoint.
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
+protected_router.include_router(knowledge.router)
 app.include_router(protected_router)

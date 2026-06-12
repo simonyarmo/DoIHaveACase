@@ -21,10 +21,16 @@ class Settings(BaseSettings):
     azure_search_endpoint: str = ""
     azure_search_api_key: str = ""
 
+    # Foundry IQ knowledge bases (backed by Azure AI Search indexes)
+    foundry_kb_state_law: str = "kb-state-law-security-deposit"
+    foundry_kb_court_procedures: str = "kb-court-procedures"
+    foundry_kb_document_templates: str = "kb-document-templates"
+
     # Azure Blob Storage
     azure_blob_connection_string: str = ""
     azure_blob_account_name: str = ""
     azure_blob_account_key: str = ""
+    azure_blob_container_knowledge: str = "knowledge-sources"
 
     # Supabase
     supabase_url: str = ""
@@ -44,6 +50,7 @@ class Settings(BaseSettings):
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     twilio_phone_number: str = ""
+    admin_phone_number: str = ""
 
     # App
     secret_key: str = "dev-secret-key-change-me-in-production-32chars"

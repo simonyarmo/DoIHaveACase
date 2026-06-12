@@ -1,0 +1,18 @@
+# Document template registration — Phase 2.
+#
+# Registered in Foundry IQ `kb-document-templates` so agents can reference
+# this document type from Phase 3 onward. The full field map, preflight
+# rules, and state variations are built out in Phase 5
+# (backend/documents/template_engine.py).
+
+document_type: demand_letter
+display_name: Demand Letter
+description: >
+  Formal written demand sent to the landlord before filing suit, citing the
+  statutory return deadline, itemization requirements, and amount owed.
+applies_to_dispute_types:
+  - security_deposit
+generates_with: []
+status: stub
+fields: []
+state_variations: {}

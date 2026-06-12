@@ -1,0 +1,36 @@
+# Authoritative source registry for the state law ingestion pipeline.
+#
+# Every URL must point to an official government or court website — no
+# third-party legal-information sites. `statute.url` is the source the
+# fetcher pulls for the main state law file (backend/knowledge/state_law/{state}.md).
+# `court_procedures` entries feed the kb-court-procedures knowledge base.
+
+TX:
+  dispute_type: security_deposit
+  statute:
+    url: https://statutes.capitol.texas.gov/Docs/PR/htm/PR.92.htm
+    description: Texas Property Code, Title 8, Chapter 92, Subchapter C — Security Deposits
+  court_procedures:
+    - county: Harris
+      url: https://jp.hctx.net/
+      description: Harris County Justice of the Peace Courts — small claims filing
+    - county: Travis
+      url: https://www.traviscountytx.gov/justices-of-the-peace
+      description: Travis County Justice of the Peace precincts — small claims filing
+  review_frequency_days: 365
+
+CA:
+  dispute_type: security_deposit
+  statute:
+    url: https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=CIV&sectionNum=1950.5
+    description: California Civil Code § 1950.5 — Security deposits
+  court_procedures: []
+  review_frequency_days: 90
+
+FL:
+  dispute_type: security_deposit
+  statute:
+    url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0000-0099/0083/Sections/0083.49.html
+    description: Florida Statutes § 83.49 — Deposit money or advance rent; duty of landlord and tenant
+  court_procedures: []
+  review_frequency_days: 90

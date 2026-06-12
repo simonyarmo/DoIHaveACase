@@ -1,0 +1,19 @@
+# Document template registration — Phase 2.
+#
+# Registered in Foundry IQ `kb-document-templates` so agents can reference
+# this document type from Phase 3 onward. The full field map, preflight
+# rules, and state variations are built out in Phase 5
+# (backend/documents/template_engine.py).
+
+document_type: motion_to_amend
+display_name: Motion to Amend
+description: >
+  Motion requesting the court's leave to file an amended petition. Always
+  generated together with amended_petition.
+applies_to_dispute_types:
+  - security_deposit
+generates_with:
+  - amended_petition
+status: stub
+fields: []
+state_variations: {}
