@@ -21,6 +21,7 @@ from datetime import date
 import pdfplumber
 from docx import Document as DocxDocument
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from config import settings
 from database import async_session_factory
@@ -131,11 +132,23 @@ async def _parse_and_store(document_id: str, case_id: str) -> dict:
 
         document.status = "processed"
 
-        await foundry_iq.add_document_to_case_kb(
-            db, case_id, f"lease-parse-{document_id}", "Lease Parse Summary", _build_summary(parsed), "lease_parse"
-        )
-
-        await db.commit()
+        try:
+            await foundry_iq.add_document_to_case_kb(
+                db, case_id, f"lease-parse-{document_id}", "Lease Parse Summary", _build_summary(parsed), "lease_parse"
+            )
+            await db.commit()
+        except IntegrityError:
+            # Another worker (the upload-time Celery dispatch and the intake
+            # agent's direct call can race) already parsed this document and
+            # committed a `lease_parse_results` row first. Discard our
+            # duplicate and report its result instead.
+            await db.rollback()
+            logger.info("Lease %s already parsed by a concurrent run; using existing result", document_id)
+            existing = (
+                await db.execute(select(LeaseParseResult).where(LeaseParseResult.document_id == uuid.UUID(document_id)))
+            ).scalar_one_or_none()
+            if existing is not None and existing.raw_parse_output:
+                return existing.raw_parse_output
 
     return parsed
 

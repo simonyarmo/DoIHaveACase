@@ -191,8 +191,11 @@ async def submit_case(case_id: str, current_user: CurrentUserDep, db: DbDep) -> 
     if details is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Case has no details to research")
 
+    if case.status == "researching":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Research is already in progress for this case")
+
     if case.state is None and details.property_state is not None:
-        case.state = details.property_state
+        case.state = details.property_state.upper()
     if case.county is None and details.property_county is not None:
         case.county = details.property_county
 

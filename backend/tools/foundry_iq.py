@@ -15,6 +15,7 @@ import logging
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.case_kb_document import CaseKBDocument
@@ -67,21 +68,20 @@ async def add_document_to_case_kb(db: AsyncSession, case_id: str, doc_key: str, 
     """Upsert a finding (landlord verification, state-law summary, lease parse
     result, etc.) into `case_kb_documents`, keyed by `(case_id, doc_key)` so
     re-running research updates the existing row instead of duplicating it.
+
+    Uses `INSERT ... ON CONFLICT DO UPDATE` (rather than a SELECT-then-write)
+    so two concurrent writers for the same `(case_id, doc_key)` — e.g. the
+    upload-time lease parser and the intake agent's research run — can't
+    both pass an existence check and hit the table's unique constraint.
     """
-    existing = (
-        await db.execute(
-            select(CaseKBDocument).where(CaseKBDocument.case_id == uuid.UUID(case_id), CaseKBDocument.doc_key == doc_key)
-        )
-    ).scalar_one_or_none()
-
-    if existing is None:
-        db.add(CaseKBDocument(case_id=uuid.UUID(case_id), doc_key=doc_key, title=title, content=content, doc_type=doc_type))
-    else:
-        existing.title = title
-        existing.content = content
-        existing.doc_type = doc_type
-
-    await db.flush()
+    stmt = pg_insert(CaseKBDocument).values(
+        case_id=uuid.UUID(case_id), doc_key=doc_key, title=title, content=content, doc_type=doc_type
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["case_id", "doc_key"],
+        set_={"title": title, "content": content, "doc_type": doc_type},
+    )
+    await db.execute(stmt)
 
 
 async def get_case_kb_documents(db: AsyncSession, case_id: str) -> list[dict]:

@@ -60,6 +60,12 @@ async def _run(case_id: str, session_id: str) -> dict:
                 session.status = "error"
                 session.completed_at = datetime.now(timezone.utc)
                 session.error_message = str(exc)[:2000]
+            # _run_research commits case.status = "researching" partway through;
+            # revert it on failure so the case isn't stuck and can be resubmitted.
+            case = await db.get(Case, uuid.UUID(case_id))
+            if case is not None and case.status == "researching":
+                case.status = "intake"
+                case.updated_at = datetime.now(timezone.utc)
             await db.commit()
         await progress_bus.publish(case_id, {"tool": "assessment", "status": "error", "error": str(exc)})
         raise
@@ -230,7 +236,11 @@ async def _upsert_court_tracking(db: Any, case_id: str, court_result: dict) -> N
 
 async def _maybe_parse_lease(db: Any, case_id: str, session_id: str, tools_called: dict[str, Any]) -> None:
     lease_doc = (
-        await db.execute(select(Document).where(Document.case_id == uuid.UUID(case_id), Document.type == "lease"))
+        await db.execute(
+            select(Document)
+            .where(Document.case_id == uuid.UUID(case_id), Document.type == "lease")
+            .order_by(Document.uploaded_at.desc())
+        )
     ).scalars().first()
     if lease_doc is None:
         return

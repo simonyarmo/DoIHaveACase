@@ -39,7 +39,7 @@ def _parse_address(address: str) -> dict | None:
 
 def _build_request_xml(parsed: dict) -> str:
     return (
-        f'<AddressValidateRequest USERID="{escape(settings.usps_api_key)}">'
+        f'<AddressValidateRequest USERID="{escape(settings.usps_api_key, {chr(34): "&quot;"})}">'
         '<Address ID="0">'
         "<Address1></Address1>"
         f"<Address2>{escape(parsed['street'])}</Address2>"

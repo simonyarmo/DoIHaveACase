@@ -25,7 +25,10 @@ async def chat_completion(messages: list[dict], *, temperature: float = 0.1, tim
         )
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        choices = data.get("choices") or []
+        if not choices:
+            raise ValueError("Azure OpenAI chat completion returned no choices (response may have been content-filtered)")
+        return choices[0]["message"]["content"]
 
 
 async def chat_completion_stream(
