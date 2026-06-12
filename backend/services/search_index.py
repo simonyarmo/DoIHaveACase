@@ -1,11 +1,17 @@
 """Foundry IQ knowledge base client.
 
 Each Foundry IQ knowledge base referenced in the phase docs
-(`kb-state-law-security-deposit`, `kb-court-procedures`,
-`kb-document-templates`, and per-case `kb-case-{case_id}`) is implemented as
-an Azure AI Search index, using the credentials already provisioned in
-`AZURE_SEARCH_ENDPOINT` / `AZURE_SEARCH_API_KEY`. The index name is the
-knowledge base's `foundry_source_id`.
+(`kb-state-law-security-deposit`, `kb-court-procedures`, and
+`kb-document-templates`) is implemented as an Azure AI Search index, using
+the credentials already provisioned in `AZURE_SEARCH_ENDPOINT` /
+`AZURE_SEARCH_API_KEY`. The index name is the knowledge base's
+`foundry_source_id`.
+
+Per-case findings (landlord verification, state-law summaries, lease parse
+results, etc.) are stored in Postgres (`models.case_kb_document`) rather than
+Azure AI Search — they're a handful of short documents per case, so no
+semantic index is needed, and Azure AI Search's free tier caps the total
+number of indexes at 3, which these three knowledge bases already consume.
 """
 
 from functools import lru_cache
@@ -62,13 +68,3 @@ def upload_documents(index_name: str, documents: list[dict]) -> None:
     """Upsert documents into a knowledge base index, creating the index first if needed."""
     ensure_knowledge_base_index(index_name)
     get_search_client(index_name).merge_or_upload_documents(documents=documents)
-
-
-def create_case_knowledge_base(case_id: str) -> str:
-    """Create a per-case knowledge base, isolating that case's data at the retrieval layer.
-
-    Returns the `foundry_source_id` (index name) for the new knowledge base.
-    """
-    index_name = f"kb-case-{case_id}"
-    ensure_knowledge_base_index(index_name)
-    return index_name

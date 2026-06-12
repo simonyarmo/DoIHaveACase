@@ -4,16 +4,8 @@ defined in `.claude/docs/phase-02-law-schema.md`.
 
 from datetime import datetime, timedelta, timezone
 
-import httpx
-
-from config import settings
 from knowledge.ingestion.validator import SCHEMA_SECTIONS
-
-# The configured deployment is a reasoning model that emits a `reasoning_content`
-# trace before the final markdown, which can take several minutes for a
-# 17-section extraction. This runs inside a Celery task, not a request/response
-# cycle, so a generous timeout is safe.
-_TIMEOUT = httpx.Timeout(300.0)
+from services import llm_client
 
 
 def _system_prompt(state: str, source_url: str, review_frequency_days: int) -> str:
@@ -68,12 +60,4 @@ async def parse_state_law(
         }
     )
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        response = await client.post(
-            f"{settings.azure_openai_endpoint}/chat/completions",
-            headers={"api-key": settings.azure_openai_key, "Content-Type": "application/json"},
-            json={"model": settings.azure_openai_deployment, "messages": messages, "temperature": 0.1},
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+    return await llm_client.chat_completion(messages, temperature=0.1)

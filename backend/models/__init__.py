@@ -2,6 +2,7 @@ from database import Base
 from models.agent_session import AgentSession
 from models.case import Case
 from models.case_detail import CaseDetailsSecurityDeposit
+from models.case_kb_document import CaseKBDocument
 from models.case_party import CaseParty
 from models.conversation import ConversationMessage
 from models.court_tracking import CourtTracking
@@ -20,6 +21,7 @@ __all__ = [
     "Case",
     "CaseDetailsSecurityDeposit",
     "CaseExpense",
+    "CaseKBDocument",
     "CaseParty",
     "ConversationMessage",
     "CourtTracking",

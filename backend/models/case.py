@@ -51,7 +51,6 @@ class Case(Base):
     dispute_type: Mapped[str] = mapped_column(dispute_type_enum, default="security_deposit")
     state: Mapped[str | None] = mapped_column(String(2))
     county: Mapped[str | None] = mapped_column(String)
-    foundry_kb_id: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
