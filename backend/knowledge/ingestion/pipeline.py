@@ -47,10 +47,18 @@ async def run_seed(db: AsyncSession, state: str) -> dict:
     result = validator.validate_markdown(markdown)
     if not result.is_valid:
         await freshness.record_pipeline_run(
-            db, state, status="invalid", changes={"missing_sections": result.missing_sections}
+            db,
+            state,
+            status="invalid",
+            changes={"missing_sections": result.missing_sections, "missing_header_fields": result.missing_header_fields},
         )
         await db.commit()
-        return {"state": state, "status": "invalid", "missing_sections": result.missing_sections}
+        return {
+            "state": state,
+            "status": "invalid",
+            "missing_sections": result.missing_sections,
+            "missing_header_fields": result.missing_header_fields,
+        }
 
     header = validator.extract_header(markdown)
     foundry_source_id = uploader.upload_state_law(state, markdown, source.statute_url, header["Last Verified"])
@@ -73,47 +81,66 @@ async def run_refresh(db: AsyncSession, state: str) -> dict:
     await freshness.record_pipeline_run(db, state, status="ingesting")
     await db.commit()
 
-    existing_markdown = uploader.get_existing_state_law(state)
-    reference_markdown = existing_markdown or _read_local_markdown("TX")
+    try:
+        existing_markdown = uploader.get_existing_state_law(state)
+        reference_markdown = existing_markdown or _read_local_markdown("TX")
 
-    raw = await fetcher.fetch_source(source.statute_url)
-    new_markdown = await parser.parse_state_law(state, source.statute_url, raw, reference_markdown=reference_markdown)
-
-    result = validator.validate_markdown(new_markdown, existing_markdown=existing_markdown)
-
-    if not result.is_valid:
-        await freshness.record_pipeline_run(
-            db, state, status="invalid", changes={"missing_sections": result.missing_sections}
+        raw = await fetcher.fetch_source(source.statute_url)
+        new_markdown = await parser.parse_state_law(
+            state, source.statute_url, raw, reference_markdown=reference_markdown
         )
+
+        result = validator.validate_markdown(new_markdown, existing_markdown=existing_markdown)
+
+        if not result.is_valid:
+            await freshness.record_pipeline_run(
+                db,
+                state,
+                status="invalid",
+                changes={
+                    "missing_sections": result.missing_sections,
+                    "missing_header_fields": result.missing_header_fields,
+                },
+            )
+            await db.commit()
+            return {
+                "state": state,
+                "status": "invalid",
+                "missing_sections": result.missing_sections,
+                "missing_header_fields": result.missing_header_fields,
+            }
+
+        if result.needs_review:
+            uploader.upload_pending_review(state, new_markdown)
+            await freshness.record_pipeline_run(
+                db,
+                state,
+                status="pending_review",
+                pending_review=True,
+                changes={"changed_critical_sections": result.changed_critical_sections},
+            )
+            await db.commit()
+            send_admin_sms(
+                f"DepositShield: {state} security deposit law has changes pending review "
+                f"in sections: {', '.join(result.changed_critical_sections)}."
+            )
+            return {
+                "state": state,
+                "status": "pending_review",
+                "changed_critical_sections": result.changed_critical_sections,
+            }
+
+        header = validator.extract_header(new_markdown)
+        foundry_source_id = uploader.upload_state_law(state, new_markdown, source.statute_url, header["Last Verified"])
+        (STATE_LAW_DIR / f"{state}.md").write_text(new_markdown, encoding="utf-8")
+        await freshness.record_pipeline_run(db, state, status="ready", foundry_source_id=foundry_source_id)
         await db.commit()
-        return {"state": state, "status": "invalid", "missing_sections": result.missing_sections}
-
-    if result.needs_review:
-        uploader.upload_pending_review(state, new_markdown)
-        await freshness.record_pipeline_run(
-            db,
-            state,
-            status="pending_review",
-            pending_review=True,
-            changes={"changed_critical_sections": result.changed_critical_sections},
-        )
+        return {"state": state, "status": "ready", "foundry_source_id": foundry_source_id}
+    except Exception as exc:
+        logger.exception("Ingestion pipeline failed for state %s", state)
+        await freshness.record_pipeline_run(db, state, status="error", changes={"error": str(exc)[:500]})
         await db.commit()
-        send_admin_sms(
-            f"DepositShield: {state} security deposit law has changes pending review "
-            f"in sections: {', '.join(result.changed_critical_sections)}."
-        )
-        return {
-            "state": state,
-            "status": "pending_review",
-            "changed_critical_sections": result.changed_critical_sections,
-        }
-
-    header = validator.extract_header(new_markdown)
-    foundry_source_id = uploader.upload_state_law(state, new_markdown, source.statute_url, header["Last Verified"])
-    (STATE_LAW_DIR / f"{state}.md").write_text(new_markdown, encoding="utf-8")
-    await freshness.record_pipeline_run(db, state, status="ready", foundry_source_id=foundry_source_id)
-    await db.commit()
-    return {"state": state, "status": "ready", "foundry_source_id": foundry_source_id}
+        return {"state": state, "status": "error", "error": str(exc)}
 
 
 async def run_on_demand(db: AsyncSession, state: str) -> dict:

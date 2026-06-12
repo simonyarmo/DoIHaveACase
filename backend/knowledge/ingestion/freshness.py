@@ -68,6 +68,12 @@ async def record_pipeline_run(
 
     if status == "ready" and not pending_review:
         row.last_verified = now
+
+    # Every terminal status (i.e. not the in-flight "ingesting" status) schedules
+    # its own next attempt on the normal cadence — otherwise stub/invalid/error
+    # states never get a `next_review` and `list_due_for_refresh` re-attempts a
+    # full pipeline run for them every week indefinitely.
+    if status != "ingesting":
         row.next_review = now + timedelta(days=row.review_frequency_days)
 
     await db.flush()

@@ -37,6 +37,8 @@ CRITICAL_SECTIONS = [
     "13. AGENT DECISION RULES",
 ]
 
+REQUIRED_HEADER_FIELDS = ["Last Verified", "Source", "Next Review Due", "Status"]
+
 _HEADER_PATTERN = re.compile(r"^## (Last Verified|Source|Next Review Due|Status): (.+)$", re.MULTILINE)
 _SECTION_PATTERN = re.compile(r"^## (\d+a?\. .+)$", re.MULTILINE)
 
@@ -46,6 +48,7 @@ class ValidationResult:
     is_valid: bool
     needs_review: bool
     missing_sections: list[str] = field(default_factory=list)
+    missing_header_fields: list[str] = field(default_factory=list)
     changed_critical_sections: list[str] = field(default_factory=list)
 
 
@@ -71,6 +74,9 @@ def validate_markdown(markdown: str, *, existing_markdown: str | None = None) ->
     sections = extract_sections(markdown)
     missing = [name for name in SCHEMA_SECTIONS if name not in sections]
 
+    header = extract_header(markdown)
+    missing_header = [name for name in REQUIRED_HEADER_FIELDS if name not in header]
+
     changed_critical: list[str] = []
     if existing_markdown:
         existing_sections = extract_sections(existing_markdown)
@@ -79,8 +85,9 @@ def validate_markdown(markdown: str, *, existing_markdown: str | None = None) ->
                 changed_critical.append(name)
 
     return ValidationResult(
-        is_valid=not missing,
+        is_valid=not missing and not missing_header,
         needs_review=bool(changed_critical),
         missing_sections=missing,
+        missing_header_fields=missing_header,
         changed_critical_sections=changed_critical,
     )
