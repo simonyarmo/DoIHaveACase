@@ -26,7 +26,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from agents import lease_parser_agent
+from agents import assessment_agent, lease_parser_agent
 from config import settings
 from database import celery_session_factory as async_session_factory
 from knowledge.ingestion import pipeline
@@ -177,7 +177,7 @@ async def _run_research(case_id: str, session_id: str) -> dict:
         await _add_message(db, case_id, session_id, "Research complete — your case assessment is ready.", message_type="text")
         await db.commit()
 
-    await progress_bus.publish(case_id, {"tool": "assessment", "status": "complete", "result": {"case_status": "assessment"}})
+    await assessment_agent._run(case_id)
     return {"case_status": "assessment", "tools_called": _json_safe(tools_called)}
 
 

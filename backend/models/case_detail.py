@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -66,3 +66,15 @@ class CaseDetailsSecurityDeposit(Base):
     estimated_recovery_min: Mapped[float | None] = mapped_column(Numeric(10, 2))
     estimated_recovery_max: Mapped[float | None] = mapped_column(Numeric(10, 2))
     penalty_multiplier: Mapped[float | None] = mapped_column(Numeric(4, 1))
+
+    # Computed (set by assessment agent)
+    case_strength: Mapped[str | None] = mapped_column(String)
+    findings_good: Mapped[dict | None] = mapped_column(JSONB)
+    findings_caution: Mapped[dict | None] = mapped_column(JSONB)
+    findings_bad: Mapped[dict | None] = mapped_column(JSONB)
+    defenses_likely: Mapped[dict | None] = mapped_column(JSONB)
+    exceeds_jurisdiction: Mapped[bool | None] = mapped_column(Boolean)
+    jurisdiction_options: Mapped[dict | None] = mapped_column(JSONB)
+    recommended_path: Mapped[str | None] = mapped_column(Text)
+    notice_compliant: Mapped[bool | None] = mapped_column(Boolean)
+    notice_risk_amount: Mapped[float | None] = mapped_column(Numeric(10, 2))

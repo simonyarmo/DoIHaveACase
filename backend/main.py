@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 
 from api.dependencies import get_current_user
-from api.routes import auth, cases, chat, health, knowledge
+from api.routes import auth, cases, chat, expenses, health, knowledge
 from config import settings
 from database import engine
 
@@ -49,4 +49,5 @@ app.include_router(chat.router)
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 protected_router.include_router(knowledge.router)
 protected_router.include_router(cases.router)
+protected_router.include_router(expenses.router)
 app.include_router(protected_router)

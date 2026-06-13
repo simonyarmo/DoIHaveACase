@@ -61,10 +61,22 @@ class CaseDetailsOut(BaseModel):
     days_overdue: int | None = None
     deadline_date: date | None = None
     violation_confirmed: bool | None = None
-    bad_faith_indicators: dict | None = None
+    bad_faith_indicators: list[str] | None = None
     estimated_recovery_min: float | None = None
     estimated_recovery_max: float | None = None
     penalty_multiplier: float | None = None
+
+    # Computed by assessment agent
+    case_strength: str | None = None
+    findings_good: list[dict] | None = None
+    findings_caution: list[dict] | None = None
+    findings_bad: list[dict] | None = None
+    defenses_likely: list[dict] | None = None
+    exceeds_jurisdiction: bool | None = None
+    jurisdiction_options: list[str] | None = None
+    recommended_path: str | None = None
+    notice_compliant: bool | None = None
+    notice_risk_amount: float | None = None
 
     model_config = {"from_attributes": True}
 
@@ -166,3 +178,44 @@ class ConversationMessageOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class StrengthBars(BaseModel):
+    violation_clear: int
+    bad_faith_case: int
+    evidence_quality: int
+    procedural_risk: int
+
+
+class TimelineEventOut(BaseModel):
+    id: uuid.UUID
+    event_type: str
+    title: str
+    description: str | None = None
+    event_date: date | None = None
+    is_deadline: bool
+    completed: bool
+    completed_at: datetime | None = None
+    document_id: uuid.UUID | None = None
+    source: str
+
+    model_config = {"from_attributes": True}
+
+
+class AssessmentResponse(BaseModel):
+    case: CaseOut
+    details: CaseDetailsOut
+    strength_bars: StrengthBars
+    timeline_events: list[TimelineEventOut]
+
+
+class CaseSummary(BaseModel):
+    id: uuid.UUID
+    status: str
+    state: str | None = None
+    county: str | None = None
+    property_address: str | None = None
+    estimated_recovery_min: float | None = None
+    estimated_recovery_max: float | None = None
+    case_strength: str | None = None
+    created_at: datetime

@@ -55,10 +55,76 @@ export interface CaseDetailsOut {
   days_overdue: number | null
   deadline_date: string | null
   violation_confirmed: boolean | null
-  bad_faith_indicators: Record<string, unknown> | null
+  bad_faith_indicators: string[] | null
   estimated_recovery_min: number | null
   estimated_recovery_max: number | null
   penalty_multiplier: number | null
+
+  // Computed by assessment agent
+  case_strength: CaseStrength | null
+  findings_good: Finding[] | null
+  findings_caution: Finding[] | null
+  findings_bad: Finding[] | null
+  defenses_likely: Defense[] | null
+  exceeds_jurisdiction: boolean | null
+  jurisdiction_options: string[] | null
+  recommended_path: string | null
+  notice_compliant: boolean | null
+  notice_risk_amount: number | null
+}
+
+export type CaseStrength = "strong" | "moderate" | "weak" | "no_case"
+
+export interface Finding {
+  text: string
+  statute?: string
+  explanation?: string
+  impact?: string
+}
+
+export interface Defense {
+  defense: string
+  landlord_burden: string
+  tenant_response: string
+}
+
+export interface StrengthBars {
+  violation_clear: number
+  bad_faith_case: number
+  evidence_quality: number
+  procedural_risk: number
+}
+
+export interface TimelineEventOut {
+  id: string
+  event_type: string
+  title: string
+  description: string | null
+  event_date: string | null
+  is_deadline: boolean
+  completed: boolean
+  completed_at: string | null
+  document_id: string | null
+  source: string
+}
+
+export interface AssessmentResponse {
+  case: CaseOut
+  details: CaseDetailsOut
+  strength_bars: StrengthBars
+  timeline_events: TimelineEventOut[]
+}
+
+export interface CaseSummary {
+  id: string
+  status: string
+  state: string | null
+  county: string | null
+  property_address: string | null
+  estimated_recovery_min: number | null
+  estimated_recovery_max: number | null
+  case_strength: CaseStrength | null
+  created_at: string
 }
 
 // Partial update payload — Steps 2-4 send only the fields they collect.

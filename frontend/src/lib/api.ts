@@ -1,13 +1,16 @@
 import { supabase } from "@/lib/supabase"
 import type {
+  AssessmentResponse,
   CaseDetailResponse,
   CaseOut,
+  CaseSummary,
   CaseUpdateRequest,
   ConversationMessageOut,
   DocumentOut,
   DocumentType,
   SubmitResponse,
 } from "@/types/case"
+import type { ExpenseCreate, ExpenseOut, ExpenseUpdate } from "@/types/expense"
 import type { UserOut } from "@/types/user"
 
 const API_URL = import.meta.env.VITE_API_URL as string
@@ -56,6 +59,10 @@ export async function createCase(): Promise<CaseOut> {
   return request<CaseOut>("/cases", { method: "POST" })
 }
 
+export async function listCases(): Promise<CaseSummary[]> {
+  return request<CaseSummary[]>("/cases")
+}
+
 export async function getCase(caseId: string): Promise<CaseDetailResponse> {
   return request<CaseDetailResponse>(`/cases/${caseId}`)
 }
@@ -90,4 +97,28 @@ export async function getCaseSocketUrl(caseId: string): Promise<string> {
   const token = await getAccessToken()
   const wsBase = API_URL.replace(/^http/, "ws")
   return `${wsBase}/ws/cases/${caseId}?token=${encodeURIComponent(token ?? "")}`
+}
+
+export async function getAssessment(caseId: string): Promise<AssessmentResponse> {
+  return request<AssessmentResponse>(`/cases/${caseId}/assessment`)
+}
+
+export async function refreshAssessment(caseId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/cases/${caseId}/assessment/refresh`, { method: "POST" })
+}
+
+export async function listExpenses(caseId: string): Promise<ExpenseOut[]> {
+  return request<ExpenseOut[]>(`/cases/${caseId}/expenses`)
+}
+
+export async function createExpense(caseId: string, payload: ExpenseCreate): Promise<ExpenseOut> {
+  return request<ExpenseOut>(`/cases/${caseId}/expenses`, { method: "POST", body: JSON.stringify(payload) })
+}
+
+export async function updateExpense(caseId: string, expenseId: string, payload: ExpenseUpdate): Promise<ExpenseOut> {
+  return request<ExpenseOut>(`/cases/${caseId}/expenses/${expenseId}`, { method: "PUT", body: JSON.stringify(payload) })
+}
+
+export async function deleteExpense(caseId: string, expenseId: string): Promise<void> {
+  return request<void>(`/cases/${caseId}/expenses/${expenseId}`, { method: "DELETE" })
 }
