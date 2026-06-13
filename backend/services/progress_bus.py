@@ -44,14 +44,20 @@ async def subscribe(case_id: str) -> AsyncIterator[dict]:
     redis = _new_redis()
     try:
         pubsub = redis.pubsub()
+        subscribed = False
         try:
             await pubsub.subscribe(f"{CHANNEL_PREFIX}{case_id}")
+            subscribed = True
             async for message in pubsub.listen():
                 if message["type"] != "message":
                     continue
                 yield json.loads(message["data"])
         finally:
-            await pubsub.unsubscribe(f"{CHANNEL_PREFIX}{case_id}")
+            # Only unsubscribe if subscribe() succeeded — sending UNSUBSCRIBE
+            # over a connection that never finished subscribing can itself
+            # raise and mask the original error. aclose() is best-effort.
+            if subscribed:
+                await pubsub.unsubscribe(f"{CHANNEL_PREFIX}{case_id}")
             await pubsub.aclose()
     finally:
         await redis.aclose()

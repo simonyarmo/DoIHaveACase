@@ -9,6 +9,8 @@ interface UseCaseSocketHandlers {
   onAssistantMessage?: (content: string) => void
 }
 
+const RECONNECT_DELAY_MS = 2000
+
 /** Single WebSocket connection to /ws/cases/{case_id} — relays research
  * progress events and drives the chat panel's token stream. */
 export function useCaseSocket(caseId: string | null, handlers: UseCaseSocketHandlers = {}) {
@@ -23,39 +25,53 @@ export function useCaseSocket(caseId: string | null, handlers: UseCaseSocketHand
 
   useEffect(() => {
     if (!caseId) return
-    let ws: WebSocket | undefined
     let cancelled = false
+    let reconnectTimeout: ReturnType<typeof setTimeout> | undefined
 
-    void (async () => {
-      const url = await getCaseSocketUrl(caseId)
-      if (cancelled) return
+    const connect = async () => {
+      try {
+        const url = await getCaseSocketUrl(caseId)
+        if (cancelled) return
 
-      ws = new WebSocket(url)
-      wsRef.current = ws
+        const ws = new WebSocket(url)
+        wsRef.current = ws
 
-      ws.onopen = () => setConnected(true)
-      ws.onclose = () => setConnected(false)
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data) as WsServerMessage
-        if ("tool" in data) {
-          setProgress((prev) => ({ ...prev, [data.tool]: data }))
-          handlersRef.current.onProgress?.(data)
-        } else if (data.type === "token") {
-          setIsStreaming(true)
-          setStreamingContent((prev) => prev + data.content)
-        } else if (data.type === "done") {
-          setIsStreaming(false)
-          setStreamingContent((prev) => {
-            if (prev) handlersRef.current.onAssistantMessage?.(prev)
-            return ""
-          })
+        ws.onopen = () => setConnected(true)
+        ws.onclose = () => {
+          setConnected(false)
+          wsRef.current = null
+          // The socket can drop for transient reasons (idle timeout, server
+          // restart, network blip) — retry rather than leaving `connected`
+          // permanently false with no recovery path.
+          if (!cancelled) reconnectTimeout = setTimeout(connect, RECONNECT_DELAY_MS)
         }
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data) as WsServerMessage
+          if ("tool" in data) {
+            setProgress((prev) => ({ ...prev, [data.tool]: data }))
+            handlersRef.current.onProgress?.(data)
+          } else if (data.type === "token") {
+            setIsStreaming(true)
+            setStreamingContent((prev) => prev + data.content)
+          } else if (data.type === "done") {
+            setIsStreaming(false)
+            setStreamingContent((prev) => {
+              if (prev) handlersRef.current.onAssistantMessage?.(prev)
+              return ""
+            })
+          }
+        }
+      } catch {
+        if (!cancelled) reconnectTimeout = setTimeout(connect, RECONNECT_DELAY_MS)
       }
-    })()
+    }
+
+    void connect()
 
     return () => {
       cancelled = true
-      ws?.close()
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+      wsRef.current?.close()
       wsRef.current = null
       setConnected(false)
     }

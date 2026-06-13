@@ -37,12 +37,14 @@ export function Step2Property({ caseId, data, onNext, onBack, refresh }: StepPro
   })
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) =>
-      updateCase(caseId, {
+    mutationFn: (values: FormValues) => {
+      const county = values.property_county || null
+      return updateCase(caseId, {
         state: values.property_state,
-        county: values.property_county || null,
-        details: { ...values, property_county: values.property_county || null },
-      }),
+        county,
+        details: { ...values, property_county: county },
+      })
+    },
     onSuccess: async () => {
       await refresh()
       onNext()
