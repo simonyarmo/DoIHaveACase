@@ -125,6 +125,14 @@ export const EVIDENCE_UPLOADS: EvidenceUploadSpec[] = [
   },
 ]
 
+export const EXPENSE_CATEGORY_OPTIONS = [
+  { value: "filing_fee", label: "Filing fee" },
+  { value: "service_fee", label: "Service fee" },
+  { value: "mail", label: "Mail / postage" },
+  { value: "notary", label: "Notary" },
+  { value: "other", label: "Other" },
+]
+
 // Tool names published over the progress WebSocket (agents/intake_agent.py),
 // in the order the research agent runs them, with display copy for the
 // research-progress panel.

@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
 from database import get_db
+from models.case import Case
 from models.user import User
 from services.users import get_or_create_local_user
 
@@ -54,3 +56,15 @@ async def get_current_user(credentials: CredentialsDep, db: DbDep) -> User:
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+async def get_case_or_404(db: DbDep, case_id: str, user_id: uuid.UUID) -> Case:
+    try:
+        case_uuid = uuid.UUID(case_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    case = await db.get(Case, case_uuid)
+    if case is None or case.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    return case

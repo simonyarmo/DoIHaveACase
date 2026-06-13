@@ -229,7 +229,13 @@ async def run_checks() -> str | None:
 
     async with async_session_factory() as db:
         case = await db.get(Case, uuid.UUID(case_id))
-        check("case.status == assessment", case is not None and case.status == "assessment", f"got {case.status if case else None}")
+        # Phase 4: assessment_agent now runs in-process right after research,
+        # moving status to action_plan (or closed_no_case) instead of leaving it at "assessment".
+        check(
+            "case.status in (action_plan, closed_no_case)",
+            case is not None and case.status in ("action_plan", "closed_no_case"),
+            f"got {case.status if case else None}",
+        )
 
         case_details = (
             await db.execute(select(CaseDetailsSecurityDeposit).where(CaseDetailsSecurityDeposit.case_id == uuid.UUID(case_id)))
@@ -275,7 +281,14 @@ async def run_checks() -> str | None:
         events: list[dict] = []
 
         async def collect() -> None:
+            # A live Celery worker may independently be processing the
+            # `run_intake_research` task queued by `submit_case` above (for
+            # the same case_id), publishing its own progress events on this
+            # channel concurrently — filter for our own marker event rather
+            # than grabbing whichever message arrives first.
             async for event in progress_bus.subscribe(case_id):
+                if event.get("tool") != "smoke_test":
+                    continue
                 events.append(event)
                 return
 

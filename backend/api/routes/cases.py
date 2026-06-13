@@ -5,9 +5,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 
+from agents.assessment_agent import run_assessment
 from agents.intake_agent import run_intake_research
 from agents.lease_parser_agent import parse_lease
 from api.dependencies import CurrentUserDep, DbDep
+from api.dependencies import get_case_or_404 as _get_case_or_404
 from config import settings
 from models.agent_session import AgentSession
 from models.case import Case
@@ -15,19 +17,26 @@ from models.case_detail import CaseDetailsSecurityDeposit
 from models.case_party import CaseParty
 from models.conversation import ConversationMessage
 from models.document import Document
+from models.lease_parse import LeaseParseResult
+from models.timeline import TimelineEvent
 from models.user import User
 from schemas.cases import (
+    AssessmentResponse,
     CaseDetailResponse,
     CaseDetailsOut,
     CaseOut,
+    CaseSummary,
     CaseUpdateRequest,
     ConversationMessageOut,
     DocumentOut,
     PartyOut,
+    StrengthBars,
     SubmitResponse,
     TenantInfo,
+    TimelineEventOut,
 )
 from services import blob_storage
+from tools.assessment_rules import compute_strength_bars
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -42,17 +51,15 @@ ALLOWED_DOCUMENT_TYPES = {
     "deposit_proof",
 }
 
-
-async def _get_case_or_404(db: DbDep, case_id: str, user_id: uuid.UUID) -> Case:
-    try:
-        case_uuid = uuid.UUID(case_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-
-    case = await db.get(Case, case_uuid)
-    if case is None or case.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
-    return case
+# Fixed action-plan step order — `timeline_events.event_type` for agent-generated
+# plans, used to render the action plan in a stable sequence on the assessment screen.
+_TIMELINE_EVENT_ORDER = {
+    "demand_letter_required": 0,
+    "deadline": 1,
+    "filing_required": 2,
+    "service_required": 3,
+    "hearing": 4,
+}
 
 
 async def _build_detail_response(db: DbDep, case: Case) -> CaseDetailResponse:
@@ -88,6 +95,33 @@ async def _upsert_tenant(db: DbDep, case: Case, current_user: User, tenant: Tena
 
     if tenant.phone is not None:
         current_user.phone_number = tenant.phone
+
+
+@router.get("", response_model=list[CaseSummary])
+async def list_cases(current_user: CurrentUserDep, db: DbDep) -> list[CaseSummary]:
+    """Cases for the current user, newest first — powers the Dashboard."""
+    rows = (
+        await db.execute(
+            select(Case, CaseDetailsSecurityDeposit)
+            .join(CaseDetailsSecurityDeposit, CaseDetailsSecurityDeposit.case_id == Case.id, isouter=True)
+            .where(Case.user_id == current_user.id)
+            .order_by(Case.created_at.desc())
+        )
+    ).all()
+    return [
+        CaseSummary(
+            id=case.id,
+            status=case.status,
+            state=case.state,
+            county=case.county,
+            property_address=details.property_address if details else None,
+            estimated_recovery_min=details.estimated_recovery_min if details else None,
+            estimated_recovery_max=details.estimated_recovery_max if details else None,
+            case_strength=details.case_strength if details else None,
+            created_at=case.created_at,
+        )
+        for case, details in rows
+    ]
 
 
 @router.post("", response_model=CaseOut, status_code=status.HTTP_201_CREATED)
@@ -238,3 +272,45 @@ async def submit_case(case_id: str, current_user: CurrentUserDep, db: DbDep) -> 
     run_intake_research.delay(str(case.id), str(session.id))
 
     return SubmitResponse(status="researching", session_id=session.id)
+
+
+@router.get("/{case_id}/assessment", response_model=AssessmentResponse)
+async def get_assessment(case_id: str, current_user: CurrentUserDep, db: DbDep) -> AssessmentResponse:
+    case = await _get_case_or_404(db, case_id, current_user.id)
+
+    details = (
+        await db.execute(select(CaseDetailsSecurityDeposit).where(CaseDetailsSecurityDeposit.case_id == case.id))
+    ).scalar_one_or_none()
+
+    if details is None:
+        details_out = CaseDetailsOut()
+        strength_bars = StrengthBars(violation_clear=0, bad_faith_case=0, evidence_quality=0, procedural_risk=0)
+    else:
+        lease = (
+            await db.execute(
+                select(LeaseParseResult).where(LeaseParseResult.case_id == case.id).order_by(LeaseParseResult.parsed_at.desc())
+            )
+        ).scalars().first()
+        details_out = CaseDetailsOut.model_validate(details)
+        strength_bars = StrengthBars(**compute_strength_bars(details, lease_parsed=lease is not None))
+
+    events = (await db.execute(select(TimelineEvent).where(TimelineEvent.case_id == case.id))).scalars().all()
+    events = sorted(events, key=lambda e: _TIMELINE_EVENT_ORDER.get(e.event_type, 99))
+
+    return AssessmentResponse(
+        case=CaseOut.model_validate(case),
+        details=details_out,
+        strength_bars=strength_bars,
+        timeline_events=[TimelineEventOut.model_validate(event) for event in events],
+    )
+
+
+@router.post("/{case_id}/assessment/refresh", status_code=status.HTTP_202_ACCEPTED)
+async def refresh_assessment(case_id: str, current_user: CurrentUserDep, db: DbDep) -> dict:
+    case = await _get_case_or_404(db, case_id, current_user.id)
+
+    if case.status == "researching":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Research is still in progress for this case")
+
+    run_assessment.delay(str(case.id))
+    return {"status": "queued"}
