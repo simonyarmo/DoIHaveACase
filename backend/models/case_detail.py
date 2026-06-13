@@ -24,6 +24,7 @@ class CaseDetailsSecurityDeposit(Base):
     property_type: Mapped[str | None] = mapped_column(String)
 
     # Landlord
+    landlord_type: Mapped[str | None] = mapped_column(String)
     landlord_name_as_entered: Mapped[str | None] = mapped_column(String)
     landlord_legal_name: Mapped[str | None] = mapped_column(String)
     landlord_sos_verified: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -2,7 +2,7 @@
 
 import asyncio
 
-from database import async_session_factory
+from database import celery_session_factory as async_session_factory
 from knowledge.ingestion import pipeline
 from knowledge.ingestion.freshness import list_due_for_refresh
 from services.notifications import send_admin_sms

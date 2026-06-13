@@ -23,6 +23,7 @@ class CaseDetailsOut(BaseModel):
     property_type: str | None = None
 
     # Landlord
+    landlord_type: str | None = None
     landlord_name_as_entered: str | None = None
     landlord_legal_name: str | None = None
     landlord_sos_verified: bool = False
@@ -80,6 +81,7 @@ class CaseDetailsUpdate(BaseModel):
     property_county: str | None = None
     property_type: str | None = None
 
+    landlord_type: str | None = None
     landlord_name_as_entered: str | None = None
     landlord_address: str | None = None
 
@@ -152,3 +154,15 @@ class CaseDetailResponse(BaseModel):
 class SubmitResponse(BaseModel):
     status: str
     session_id: uuid.UUID
+
+
+class ConversationMessageOut(BaseModel):
+    id: uuid.UUID
+    role: str
+    message_type: str
+    content: str | None = None
+    form_schema: dict | None = None
+    form_response: dict | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
