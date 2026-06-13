@@ -51,7 +51,7 @@ export function CaseTimeline() {
     ])
   }, [])
 
-  const { progress, streamingContent, isStreaming, sendMessage, sendFormResponse } = useCaseSocket(caseId, {
+  const { connected, progress, streamingContent, isStreaming, sendMessage, sendFormResponse } = useCaseSocket(caseId, {
     onProgress: handleProgress,
     onAssistantMessage: handleAssistantMessage,
   })
@@ -141,7 +141,7 @@ export function CaseTimeline() {
           isStreaming={isStreaming}
           onSend={handleSend}
           onFormResponse={handleFormResponse}
-          disabled={isResearching}
+          disabled={isResearching || !connected}
         />
       </div>
     </div>

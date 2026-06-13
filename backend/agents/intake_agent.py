@@ -28,7 +28,7 @@ from sqlalchemy import select
 
 from agents import lease_parser_agent
 from config import settings
-from database import async_session_factory
+from database import celery_session_factory as async_session_factory
 from knowledge.ingestion import pipeline
 from models.agent_session import AgentSession
 from models.case import Case

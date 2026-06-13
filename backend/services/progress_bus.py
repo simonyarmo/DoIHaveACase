@@ -42,14 +42,16 @@ async def subscribe(case_id: str) -> AsyncIterator[dict]:
     Runs until the caller stops iterating (e.g. on WebSocket disconnect).
     """
     redis = _new_redis()
-    pubsub = redis.pubsub()
-    await pubsub.subscribe(f"{CHANNEL_PREFIX}{case_id}")
     try:
-        async for message in pubsub.listen():
-            if message["type"] != "message":
-                continue
-            yield json.loads(message["data"])
+        pubsub = redis.pubsub()
+        try:
+            await pubsub.subscribe(f"{CHANNEL_PREFIX}{case_id}")
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+                yield json.loads(message["data"])
+        finally:
+            await pubsub.unsubscribe(f"{CHANNEL_PREFIX}{case_id}")
+            await pubsub.aclose()
     finally:
-        await pubsub.unsubscribe(f"{CHANNEL_PREFIX}{case_id}")
-        await pubsub.aclose()
         await redis.aclose()

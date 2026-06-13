@@ -62,11 +62,15 @@ export function useCaseSocket(caseId: string | null, handlers: UseCaseSocketHand
   }, [caseId])
 
   const sendMessage = useCallback((content: string) => {
-    wsRef.current?.send(JSON.stringify({ type: "message", content }))
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "message", content }))
+    }
   }, [])
 
   const sendFormResponse = useCallback((formResponse: Record<string, unknown>) => {
-    wsRef.current?.send(JSON.stringify({ type: "form_response", form_response: formResponse }))
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "form_response", form_response: formResponse }))
+    }
   }, [])
 
   return { connected, progress, streamingContent, isStreaming, sendMessage, sendFormResponse }

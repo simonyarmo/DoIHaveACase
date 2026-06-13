@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { useMutation, useQuery } from "@tanstack/react-query"
 
@@ -16,9 +16,9 @@ interface FormValues {
 
 export function Step1Who({ caseId, data, onNext, refresh }: StepProps) {
   const tenant = data.parties.find((p) => p.role === "tenant")
-  const { data: me } = useQuery({ queryKey: ["me"], queryFn: getCurrentUser })
+  const { data: me, isSuccess: meLoaded } = useQuery({ queryKey: ["me"], queryFn: getCurrentUser })
 
-  const { register, handleSubmit, reset } = useForm<FormValues>({
+  const { register, handleSubmit, setValue, getValues } = useForm<FormValues>({
     defaultValues: {
       full_legal_name: tenant?.full_legal_name ?? "",
       address: tenant?.address ?? "",
@@ -26,14 +26,14 @@ export function Step1Who({ caseId, data, onNext, refresh }: StepProps) {
     },
   })
 
+  const phoneInitialized = useRef(false)
   useEffect(() => {
-    reset({
-      full_legal_name: tenant?.full_legal_name ?? "",
-      address: tenant?.address ?? "",
-      phone: me?.phone_number ?? "",
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant, me])
+    if (!meLoaded || phoneInitialized.current) return
+    phoneInitialized.current = true
+    if (me?.phone_number && !getValues("phone")) {
+      setValue("phone", me.phone_number)
+    }
+  }, [meLoaded, me, getValues, setValue])
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) => updateCase(caseId, { tenant: values }),

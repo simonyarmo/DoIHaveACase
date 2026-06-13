@@ -41,9 +41,12 @@ export function Step2Property({ caseId, data, onNext, onBack, refresh }: StepPro
       updateCase(caseId, {
         state: values.property_state,
         county: values.property_county || null,
-        details: values,
+        details: { ...values, property_county: values.property_county || null },
       }),
-    onSuccess: onNext,
+    onSuccess: async () => {
+      await refresh()
+      onNext()
+    },
   })
 
   return (

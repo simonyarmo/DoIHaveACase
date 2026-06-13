@@ -28,7 +28,7 @@ export function FileDropzone({ label, description, accept, existingFileName, onU
   }, [existingFileName])
 
   const handleFile = async (file: File | undefined) => {
-    if (!file || disabled) return
+    if (!file || disabled || status === "uploading") return
     setStatus("uploading")
     setError(null)
     try {

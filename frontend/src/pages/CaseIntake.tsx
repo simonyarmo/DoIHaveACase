@@ -26,6 +26,7 @@ export function CaseIntake() {
   const queryClient = useQueryClient()
   const caseId = useIntakeStore((s) => s.caseId)
   const setCaseId = useIntakeStore((s) => s.setCaseId)
+  const resetIntake = useIntakeStore((s) => s.reset)
   const creating = useRef(false)
 
   const step = n ? Number(n) : 1
@@ -45,7 +46,7 @@ export function CaseIntake() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId])
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["case", caseId],
     queryFn: () => getCase(caseId!),
     enabled: !!caseId,
@@ -53,6 +54,24 @@ export function CaseIntake() {
 
   if (!stepIsValid) {
     return <Navigate to="/cases/new/step/1" replace />
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+        <p className="text-muted-foreground">We couldn't load your case. It may have been removed.</p>
+        <button
+          type="button"
+          className="text-sm font-medium text-primary underline"
+          onClick={() => {
+            resetIntake()
+            navigate("/cases/new/step/1")
+          }}
+        >
+          Start a new case
+        </button>
+      </div>
+    )
   }
 
   if (!caseId || isLoading || !data) {

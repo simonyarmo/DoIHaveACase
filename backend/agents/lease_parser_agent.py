@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import func
 
 from config import settings
-from database import async_session_factory
+from database import celery_session_factory as async_session_factory
 from models.case import Case
 from models.case_detail import CaseDetailsSecurityDeposit
 from models.document import Document

@@ -59,7 +59,10 @@ export function Step3Deposit({ caseId, data, onNext, onBack, refresh }: StepProp
       }
       return updateCase(caseId, { details: payload })
     },
-    onSuccess: onNext,
+    onSuccess: async () => {
+      await refresh()
+      onNext()
+    },
   })
 
   return (
