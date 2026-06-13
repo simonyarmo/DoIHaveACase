@@ -9,7 +9,6 @@ connected client. Uses the same Redis instance as the Celery broker.
 import json
 import ssl
 from collections.abc import AsyncIterator
-from functools import lru_cache
 
 from redis.asyncio import Redis
 
@@ -18,8 +17,11 @@ from config import settings
 CHANNEL_PREFIX = "case-progress:"
 
 
-@lru_cache
-def _redis() -> Redis:
+def _new_redis() -> Redis:
+    # A fresh client per call rather than a cached singleton: a cached
+    # client's connections are bound to the event loop active when it was
+    # first used, which breaks ("Event loop is closed") once Celery's
+    # `asyncio.run()` moves on to a new loop for the next task.
     kwargs = {}
     if settings.celery_broker_url.startswith("rediss://"):
         kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
@@ -27,7 +29,11 @@ def _redis() -> Redis:
 
 
 async def publish(case_id: str, event: dict) -> None:
-    await _redis().publish(f"{CHANNEL_PREFIX}{case_id}", json.dumps(event))
+    redis = _new_redis()
+    try:
+        await redis.publish(f"{CHANNEL_PREFIX}{case_id}", json.dumps(event))
+    finally:
+        await redis.aclose()
 
 
 async def subscribe(case_id: str) -> AsyncIterator[dict]:
@@ -35,7 +41,8 @@ async def subscribe(case_id: str) -> AsyncIterator[dict]:
 
     Runs until the caller stops iterating (e.g. on WebSocket disconnect).
     """
-    pubsub = _redis().pubsub()
+    redis = _new_redis()
+    pubsub = redis.pubsub()
     await pubsub.subscribe(f"{CHANNEL_PREFIX}{case_id}")
     try:
         async for message in pubsub.listen():
@@ -45,3 +52,4 @@ async def subscribe(case_id: str) -> AsyncIterator[dict]:
     finally:
         await pubsub.unsubscribe(f"{CHANNEL_PREFIX}{case_id}")
         await pubsub.aclose()
+        await redis.aclose()

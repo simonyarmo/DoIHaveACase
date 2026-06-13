@@ -13,6 +13,7 @@ from models.agent_session import AgentSession
 from models.case import Case
 from models.case_detail import CaseDetailsSecurityDeposit
 from models.case_party import CaseParty
+from models.conversation import ConversationMessage
 from models.document import Document
 from models.user import User
 from schemas.cases import (
@@ -20,6 +21,7 @@ from schemas.cases import (
     CaseDetailsOut,
     CaseOut,
     CaseUpdateRequest,
+    ConversationMessageOut,
     DocumentOut,
     PartyOut,
     SubmitResponse,
@@ -179,6 +181,19 @@ async def upload_document(
         parse_lease.delay(str(document.id), str(case.id))
 
     return DocumentOut.model_validate(document)
+
+
+@router.get("/{case_id}/messages", response_model=list[ConversationMessageOut])
+async def list_messages(case_id: str, current_user: CurrentUserDep, db: DbDep) -> list[ConversationMessageOut]:
+    """Conversation history for the chat panel — progress messages from the
+    research agent plus any prior chat turns, oldest first."""
+    case = await _get_case_or_404(db, case_id, current_user.id)
+    messages = (
+        await db.execute(
+            select(ConversationMessage).where(ConversationMessage.case_id == case.id).order_by(ConversationMessage.created_at)
+        )
+    ).scalars().all()
+    return [ConversationMessageOut.model_validate(message) for message in messages]
 
 
 @router.post("/{case_id}/submit", response_model=SubmitResponse)
